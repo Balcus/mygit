@@ -1,17 +1,19 @@
-use crate::objects::blob;
-use crate::objects::commit;
-use crate::objects::tree;
+use crate::objects::{commit, tree};
 use crate::repo::config::Config;
+use crate::repo::index::Index;
 use crate::shared::types::object_type::ObjectType;
+use crate::shared::types::tree_entry::TreeEntry;
 use crate::utils;
+use crate::utils::write_object;
 use anyhow::{Context, bail};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub struct Repository {
     pub work_tree: PathBuf,
     pub git_dir: PathBuf,
     pub config: Config,
+    pub index: Index,
 }
 
 impl Repository {
@@ -27,14 +29,17 @@ impl Repository {
         }
 
         fs::create_dir_all(&git_dir)?;
-        fs::create_dir(git_dir.join("objects"))?;
-        fs::create_dir(git_dir.join("refs"))?;
+        fs::create_dir(&git_dir.join("objects"))?;
+        fs::create_dir(&git_dir.join("refs"))?;
         let config = Config::default(&git_dir.join("config"))?;
-        fs::write(git_dir.join("HEAD"), "ref: refs/heads/main\n")?;
+        fs::write(&git_dir.join("HEAD"), "ref: refs/heads/main\n")?;
+        fs::write(&git_dir.join("index"), "{}")?;
+        let index = Index::empty(&git_dir)?;
         println!("Initialized repository");
 
         Ok(Self {
             work_tree,
+            index,
             git_dir,
             config,
         })
@@ -53,11 +58,13 @@ impl Repository {
 
         let config_path = git_dir.join("config");
         let config = Config::from(&config_path)?;
+        let index = Index::load(&git_dir)?;
 
         Ok(Self {
             config,
             work_tree,
             git_dir,
+            index
         })
     }
 
@@ -68,29 +75,14 @@ impl Repository {
 
     pub fn hash_object(&self, path: String, write: bool) -> anyhow::Result<String> {
         let full_path = self.work_tree.join(&path);
-        let metadata = fs::metadata(&full_path).context("Failed to read file metadata")?;
-
-        let result = if metadata.is_file() {
-            let content = fs::read(&full_path)?;
-            let blob = blob::hash_blob(content)?;
-
-            if write {
-                utils::write_object(&self.git_dir, &blob.object_hash, &blob.compressed_content)?;
-            }
-
-            blob
-        } else if metadata.is_dir() {
-            let builder = tree::TreeBuilder {
-                work_tree: &self.work_tree,
-                git_dir: &self.git_dir,
-            };
-
-            builder.write_tree(&full_path)?
+        let hash = if write {
+            let result = write_object(&self.git_dir, &self.work_tree, &full_path)?;
+            result.hash
         } else {
-            bail!("Unsupported file type");
+            utils::get_hash(&self.git_dir, &self.work_tree, &full_path)?
         };
-
-        Ok(result.object_hash)
+        
+        Ok(hash)
     }
 
     pub fn cat_file(&self, object_hash: String) -> anyhow::Result<()> {
@@ -151,7 +143,7 @@ impl Repository {
         Ok(())
     }
 
-    pub fn commit_tree(&self, tree_hash: String, message: String) -> anyhow::Result<String> {
+    pub fn commit_tree(&self, tree_hash: String, message: String, parent_hash: Option<String>) -> anyhow::Result<String> {
         let user_name =
             self.config.user_name.clone().context(
                 "Please configure user settings (user_name) in order to create a commit",
@@ -170,11 +162,69 @@ impl Repository {
                 user_name,
                 user_email,
                 tree_hash,
-                None,
+                parent_hash,
                 message,
             )?,
             _ => bail!("Can only commit tree objects"),
         };
         Ok(hash)
+    }
+
+    pub fn add(&mut self, path: &str) -> anyhow::Result<()> {
+        let path = self.work_tree.join(path);
+        let res = utils::write_object(&self.git_dir, &self.work_tree, &path)?;
+        if let Some(s) = path.to_str() {
+            self.index.add(s.into(), res.hash)?;
+            self.index.flush()?;
+        }else {
+            bail!("Could not add file to index.")
+        }
+        
+        Ok(())
+    }
+
+    pub fn delete(&mut self, path: &str) -> anyhow::Result<()> {
+        let path = self.work_tree.join(path);
+        if let Some(s) = path.to_str() {
+            self.index.remove(s.into())?;
+            self.index.flush()?;
+        }else {
+            bail!("Could not remove file from index.")
+        }
+        
+        Ok(())
+    }
+
+    pub fn tree_from_index(&self) -> anyhow::Result<String> {
+        let mut entries = Vec::new();
+        
+        for (path, hash) in &self.index.map {
+            let name = Path::new(path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .context("Invalid filename in index")?
+                .to_string();
+            
+            let object = utils::read_object(&self.git_dir, hash)?;
+            
+            let (mode, entry_type) = match object.object_type {
+                ObjectType::Blob => ("100644".to_string(), "blob".to_string()),
+                ObjectType::Tree => ("040000".to_string(), "tree".to_string()),
+                _ => bail!("Unexpected object type in index"),
+            };
+            
+            entries.push(TreeEntry {
+                mode,
+                entry_type,
+                hash: hash.clone(),
+                name,
+            });
+        }
+        
+        let tree_content = tree::build_tree_content(entries);
+        let result = tree::hash_tree(tree_content)?;
+        utils::store_object(&self.git_dir, &result.object_hash, &result.compressed_content)?;
+        
+        Ok(result.object_hash)
     }
 }

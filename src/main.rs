@@ -24,10 +24,16 @@ fn main() -> anyhow::Result<()> {
         Commands::LsTree { tree_hash, .. } => {
             commands::ls_tree(tree_hash)?;
         }
-        Commands::CommitTree { tree_hash, message } => {
-            commands::commit_tree(tree_hash, message)?;
+        Commands::CommitTree {
+            tree_hash,
+            message,
+            parent_hash,
+        } => {
+            commands::commit_tree(tree_hash, message, parent_hash)?;
         }
-        Commands::Add { .. } => {}
+        Commands::Add { path } => commands::add(path)?,
+        Commands::Delete { path } => commands::remove(path)?,
+        Commands::WriteIndex { } => commands::write_index()?,
     }
     Ok(())
 }

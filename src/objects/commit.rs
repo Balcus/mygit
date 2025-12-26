@@ -38,7 +38,7 @@ pub fn commit_tree(
 
     let object_hash = utils::hash(&store)?;
     let compressed_content = utils::compress(&store)?;
-    utils::write_object(git_dir, &object_hash, &compressed_content)?;
+    utils::store_object(git_dir, &object_hash, &compressed_content)?;
 
     Ok(object_hash)
 }

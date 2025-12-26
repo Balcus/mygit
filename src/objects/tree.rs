@@ -16,7 +16,7 @@ impl<'a> TreeBuilder<'a> {
         let tree_content = build_tree_content(entries);
         let result = hash_tree(tree_content)?;
 
-        utils::write_object(
+        utils::store_object(
             self.git_dir,
             &result.object_hash,
             &result.compressed_content,
@@ -49,7 +49,7 @@ impl<'a> TreeBuilder<'a> {
                 let content = fs::read(&entry_path)?;
                 let blob = blob::hash_blob(content)?;
 
-                utils::write_object(self.git_dir, &blob.object_hash, &blob.compressed_content)?;
+                utils::store_object(self.git_dir, &blob.object_hash, &blob.compressed_content)?;
 
                 entries.push(TreeEntry {
                     mode: "100644".into(),

@@ -36,10 +36,19 @@ pub enum Commands {
     Add {
         path: String,
     },
+    Delete {
+        path: String
+    },
     CommitTree {
         tree_hash: String,
 
         #[arg(short = 'm', long = "message")]
         message: String,
+
+        #[arg(short = 'p', long = "parent")]
+        parent_hash: Option<String>,
     },
+    WriteIndex {
+        
+    }
 }

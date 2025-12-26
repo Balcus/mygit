@@ -1,9 +1,14 @@
+use crate::objects::{blob, tree};
 use crate::shared::types::generic_object::GenericObject;
+use crate::shared::types::hash_result::HashResult;
 use crate::shared::types::object_type::ObjectType;
-use anyhow::bail;
+use crate::shared::types::write_result::WriteResult;
+use anyhow::{Context, bail};
 use flate2::{Compression, bufread::ZlibDecoder, write::ZlibEncoder};
 use sha1::{Digest, Sha1};
 use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
 use std::{fs, io::Read, path::Path};
 
 /// Decompresses zlib-compressed data using the DEFLATE algorithm.
@@ -39,9 +44,9 @@ pub fn compress(data: &Vec<u8>) -> anyhow::Result<Vec<u8>> {
 /// - `object_type`
 /// - `size`
 /// - `decompressed_content`
-pub fn read_object(git_path: &Path, object_hash: &str) -> anyhow::Result<GenericObject> {
+pub fn read_object(git_dir: &Path, object_hash: &str) -> anyhow::Result<GenericObject> {
     let (dir, file) = object_hash.split_at(2);
-    let object_path = git_path.join("objects").join(dir).join(file);
+    let object_path = git_dir.join("objects").join(dir).join(file);
 
     let compressed_content = fs::read(object_path)?;
     let decompressed = decompress(compressed_content)?;
@@ -84,7 +89,7 @@ pub fn read_object(git_path: &Path, object_hash: &str) -> anyhow::Result<Generic
 }
 
 /// Writes a git object to the `.git/objects` directory, given the object's `compressed` contents
-pub fn write_object(git_dir: &Path, hash: &str, compressed_data: &[u8]) -> anyhow::Result<()> {
+pub fn store_object(git_dir: &Path, hash: &str, compressed_data: &[u8]) -> anyhow::Result<()> {
     let (dir, file) = hash.split_at(2);
     let object_dir = git_dir.join("objects").join(dir);
     let object_path = object_dir.join(file);
@@ -96,4 +101,58 @@ pub fn write_object(git_dir: &Path, hash: &str, compressed_data: &[u8]) -> anyho
     fs::rename(temp_path, object_path)?;
 
     Ok(())
+}
+
+/// Writes either a `file` or a `dir` to the object storage inside `.git/objects` given it's path
+pub fn write_object(
+    git_dir: &Path,
+    work_tree: &Path,
+    full_path: &Path,
+) -> anyhow::Result<WriteResult> {
+    let metadata = fs::metadata(&full_path).context("Failed to read file metadata")?;
+    let mode: String;
+    let result: HashResult;
+
+    if metadata.is_file() {
+        let perm = metadata.permissions().mode();
+        if perm & 0o111 != 0 {
+            mode = "100755".to_string();
+        } else {
+            mode = "100644".to_string();
+        }
+        let content = fs::read(&full_path)?;
+        let blob = blob::hash_blob(content)?;
+        store_object(git_dir, &blob.object_hash, &blob.compressed_content)?;
+        result = blob;
+    } else if metadata.is_dir() {
+        mode = "40000".to_string();
+        let builder = tree::TreeBuilder { work_tree, git_dir };
+        result = builder.write_tree(&PathBuf::from(full_path))?;
+    } else {
+        bail!("Unsupported file type");
+    }
+
+    Ok(WriteResult {
+        hash: result.object_hash,
+        mode,
+    })
+}
+
+///Gets the `hash` for a given `file` or `directory`
+pub fn get_hash(git_dir: &Path, work_tree: &Path, full_path: &Path) -> anyhow::Result<String> {
+    let metadata = fs::metadata(&full_path).context("Failed to read file metadata")?;
+
+    let hash = if metadata.is_file() {
+        let content = fs::read(&full_path)?;
+        let res = blob::hash_blob(content)?;
+        res.object_hash
+    } else if metadata.is_dir() {
+        let builder = tree::TreeBuilder { work_tree, git_dir };
+        let res = builder.write_tree(&PathBuf::from(full_path))?;
+        res.object_hash
+    } else {
+        bail!("Unsupported file type");
+    };
+
+    Ok(hash)
 }

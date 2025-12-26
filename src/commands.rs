@@ -25,9 +25,31 @@ pub fn ls_tree(hash: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn commit_tree(tree_hash: String, message: String) -> anyhow::Result<()> {
+pub fn commit_tree(tree_hash: String, message: String, parent_hash: Option<String>) -> anyhow::Result<()> {
     let repository = Repository::open(None)?;
-    let hash = repository.commit_tree(tree_hash, message)?;
+    let hash = repository.commit_tree(tree_hash, message, parent_hash)?;
     println!("{hash}");
     Ok(())
+}
+
+pub fn add(path: String) -> anyhow::Result<()> {
+    let mut repository = Repository::open(None)?;
+    repository.add(&path)?;
+    println!("Added {path} to index");
+    Ok(())
+}
+
+pub fn remove(path: String) -> anyhow::Result<()> {
+    let mut repository = Repository::open(None)?;
+    repository.delete(&path)?;
+    println!("Deleted {path} from index");
+    Ok(())
+}
+
+pub fn write_index() -> anyhow::Result<()> {
+    let repository = Repository::open(None)?;
+    let hash = repository.tree_from_index()?;
+    println!("{hash}");
+    Ok(())
+
 }

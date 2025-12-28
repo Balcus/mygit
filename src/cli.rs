@@ -53,4 +53,6 @@ pub enum Commands {
         #[arg(short = 'm', long = "message")]
         message: String,
     },
+    Log {},
+    App {},
 }

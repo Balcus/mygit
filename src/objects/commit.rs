@@ -1,4 +1,5 @@
-use crate::utils;
+use crate::{shared::types::object_type::ObjectType, utils};
+use anyhow::bail;
 use chrono::Local;
 use std::path::Path;
 
@@ -43,8 +44,30 @@ pub fn commit_tree(
     Ok(object_hash)
 }
 
-pub fn show_commit(git_path: &Path, commit_hash: String) -> anyhow::Result<()> {
-    let commit = utils::read_object(git_path, &commit_hash)?;
-    println!("{}", String::from_utf8(commit.decompressed_content)?);
+pub fn show_commit(store_dir: &Path, commit_hash: &str) -> anyhow::Result<()> {
+    let commit = utils::read_object(store_dir, &commit_hash)?;
+    println!("{}\n\n", String::from_utf8(commit.decompressed_content)?);
     Ok(())
+}
+
+pub fn get_parent_hash(store_dir: &Path, commit_hash: String) -> anyhow::Result<Option<String>> {
+    let commit = utils::read_object(store_dir, &commit_hash)?;
+
+    match commit.object_type {
+        ObjectType::Commit => {},
+        _ => bail!("Parent of a commit must be itself a commit")
+    };
+
+    let content = String::from_utf8(commit.decompressed_content)?;
+    for line in content.lines() {
+        if let Some(rest) = line.strip_prefix("parent ") {
+            return Ok(Some(rest.trim().to_string()));
+        }
+
+        if line.is_empty() {
+            break;
+        }
+    }
+
+    Ok(None)
 }

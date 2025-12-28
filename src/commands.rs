@@ -8,7 +8,7 @@ pub fn set(key: String, value: String) -> anyhow::Result<()> {
 
 pub fn cat_file(hash: String) -> anyhow::Result<()> {
     let repository = Repository::open(None)?;
-    repository.cat_file(hash)?;
+    repository.cat_file(&hash)?;
     Ok(())
 }
 
@@ -21,7 +21,7 @@ pub fn hash_object(path: String, write: bool) -> anyhow::Result<String> {
 
 pub fn ls_tree(hash: String) -> anyhow::Result<()> {
     let repository = Repository::open(None)?;
-    repository.ls_tree(hash)?;
+    repository.ls_tree(&hash)?;
     Ok(())
 }
 
@@ -58,4 +58,10 @@ pub fn commit(message: String) -> anyhow::Result<String> {
     let hash = repository.commit(message)?;
     println!("{hash}");
     Ok(hash)
+}
+
+pub fn log() -> anyhow::Result<()> {
+    let repository = Repository::open(None)?;
+    repository.log()?;
+    Ok(())
 }

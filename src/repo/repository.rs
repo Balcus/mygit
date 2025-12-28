@@ -14,6 +14,7 @@ pub struct Repository {
     pub store_dir: PathBuf,
     pub config: Config,
     pub index: Index,
+    pub head: Option<String>,
 }
 
 impl Repository {
@@ -43,6 +44,7 @@ impl Repository {
             index,
             store_dir,
             config,
+            head: None,
         })
     }
 
@@ -60,12 +62,17 @@ impl Repository {
         let config_path = store_dir.join("config");
         let config = Config::from(&config_path)?;
         let index = Index::load(&store_dir)?;
+        let head = fs::read_to_string(store_dir.join("refs/heads/main"))
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
 
         Ok(Self {
             config,
             work_tree,
             store_dir,
             index,
+            head,
         })
     }
 
@@ -86,8 +93,8 @@ impl Repository {
         Ok(hash)
     }
 
-    pub fn cat_file(&self, object_hash: String) -> anyhow::Result<()> {
-        let object = utils::read_object(&self.store_dir, &object_hash)?;
+    pub fn cat_file(&self, object_hash: &str) -> anyhow::Result<()> {
+        let object = utils::read_object(&self.store_dir, object_hash)?;
 
         match object.object_type {
             ObjectType::Blob => {
@@ -107,7 +114,7 @@ impl Repository {
         Ok(())
     }
 
-    pub fn ls_tree(&self, tree_hash: String) -> anyhow::Result<()> {
+    pub fn ls_tree(&self, tree_hash: &str) -> anyhow::Result<()> {
         let object = utils::read_object(&self.store_dir, &tree_hash)?;
 
         match object.object_type {
@@ -232,19 +239,13 @@ impl Repository {
         let index_tree_hash = self.tree_from_index()?;
         let (user_name, user_email) = self.config.get();
 
-        let branch_head = self.store_dir.join("refs/heads/main");
-        let parent = fs::read_to_string(&branch_head)
-            .unwrap_or_default()
-            .trim()
-            .to_string();
-
-        let commit_hash = if parent.is_empty() {
+        let commit_hash = if let Some(parent) = &self.head {
             commit::commit_tree(
                 &self.store_dir,
                 user_name,
                 user_email,
                 index_tree_hash,
-                None,
+                Some(parent.clone()),
                 message,
             )?
         } else {
@@ -253,12 +254,28 @@ impl Repository {
                 user_name,
                 user_email,
                 index_tree_hash,
-                Some(parent),
+                None,
                 message,
             )?
         };
 
-        fs::write(branch_head, &commit_hash)?;
+        let branch_path = self.store_dir.join("refs/heads/main");
+        fs::write(branch_path, &commit_hash)?;
         Ok(commit_hash)
+    }
+
+    pub fn log(&self) -> anyhow::Result<()> {
+        let mut current = self.head.clone();
+
+        while let Some(hash) = current {
+            self.cat_file(&hash.clone())?;
+            current = commit::get_parent_hash(&self.store_dir, hash)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn checkout(&self, _commit_hash: String) -> anyhow::Result<()> {
+        Ok(())
     }
 }

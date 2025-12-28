@@ -68,9 +68,15 @@ impl Config {
     }
 
     pub fn get(&self) -> (String, String) {
-    (
-        self.user_name.clone().unwrap_or("User name is not set".to_string()),
-        self.user_email.clone().unwrap_or("User email is not set".to_string())
-    )
-}
+        (
+            self.user_name
+                .clone()
+                .with_context(|| "The user_name field needs to be set")
+                .unwrap(),
+            self.user_email
+                .clone()
+                .with_context(|| "The user_email field needs to be set")
+                .unwrap(),
+        )
+    }
 }

@@ -1,0 +1,99 @@
+.sidebar-menu {
+  width: 250px;
+  height: 100vh;
+  background-color: var(--app-bg);
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+  font-family: var(--font-family);
+  font-size: 13px;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.app-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--title-color);
+}
+
+.app-subtitle {
+  font-size: 12px;
+  margin-top: 2px;
+  color: var(--subtitle-color);
+}
+
+.menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.menu-item {
+  margin-bottom: 12px;
+}
+
+.menu-child-item {
+  margin: 0;
+}
+
+.menu-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s;
+}
+
+.menu-button:hover {
+  background-color: var(--hover-bg);
+}
+
+.menu-button.parent {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--menu-parent-color);
+}
+
+.menu-button.child {
+  padding-left: 32px;
+  font-weight: 400;
+  color: var(--menu-child-color);
+}
+
+.toggle-icon {
+  width: 14px;
+  margin-right: 6px;
+  font-size: 10px;
+  color: var(--toggle-color);
+  display: flex;
+  align-items: center;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  opacity: var(--icon-opacity);
+}
+
+.label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.submenu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

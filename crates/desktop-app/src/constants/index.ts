@@ -10,6 +10,7 @@ export interface MenuItem {
   label: string;
   children?: MenuItem[];
   icon?: string;
+  className?: string;
 }
 
 export const MENU_ITEMS: MenuItem[] = [

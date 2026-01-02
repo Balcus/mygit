@@ -1,27 +1,30 @@
 import { useState, useEffect } from "react";
 import { MENU_ITEMS, MenuItem } from "../../constants";
-import { invoke } from "@tauri-apps/api/core";
-
+import { useRepository } from "../../context/RepositoryContext";
+import { Branch } from "../../models/Branch";
 import "../../App.css";
 import "./Menu.css";
 
 export default function Menu() {
-  const [expandedItems, setExpandedItems] = useState<string[]>(["workspace"]);
+  const [expandedItems, setExpandedItems] = useState<string[]>([
+    "workspace",
+    "branches",
+  ]);
   const [branches, setBranches] = useState<MenuItem[]>([]);
+  const { repository } = useRepository();
 
   useEffect(() => {
-    invoke<{ name: string }[]>("branches")
-      .then((branchList: any) => {
-        const branchMenuItems: MenuItem[] = branchList.map(
-          (branch: { is_current: boolean; name: string }) => ({
-            id: `branch-${branch.name}`,
-            label: branch.is_current ? `* ${branch.name}` : branch.name,
-          })
-        );
-        setBranches(branchMenuItems);
-      })
-      .catch(console.error);
-  }, []);
+    if (repository?.branches) {
+      const branchMenuItems: MenuItem[] = repository.branches.map(
+        (branch: Branch) => ({
+          id: `branch-${branch.name}`,
+          label: branch.name,
+          className: branch.is_current ? "current-branch" : "",
+        })
+      );
+      setBranches(branchMenuItems);
+    }
+  }, [repository]);
 
   const toggleItem = (id: string) => {
     setExpandedItems((prev) =>
@@ -43,9 +46,10 @@ export default function Menu() {
               </span>
             )}
             {item.icon && <img className="icon" src={item.icon} alt="" />}
-            <span className="label">{item.label}</span>
+            <span className={`label ${item.className || ""}`}>
+              {item.label}
+            </span>
           </button>
-
           {expandedItems.includes(item.id) && item.children.length > 0 && (
             <ul className="submenu">
               {item.children.map((child) => renderMenuItem(child, true))}
@@ -55,7 +59,7 @@ export default function Menu() {
       ) : (
         <div className="menu-button child">
           {item.icon && <img className="icon" src={item.icon} alt="" />}
-          <span className="label">{item.label}</span>
+          <span className={`label ${item.className || ""}`}>{item.label}</span>
         </div>
       )}
     </li>
@@ -74,7 +78,6 @@ export default function Menu() {
         <div className="app-title">flux</div>
         <div className="app-subtitle">Version Control System</div>
       </div>
-
       <ul className="menu-list">
         {finalMenu.map((item) => renderMenuItem(item))}
       </ul>

@@ -29,4 +29,7 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  optimizeDeps: {
+    exclude: ["@tauri-apps/api"],
+  },
 }));

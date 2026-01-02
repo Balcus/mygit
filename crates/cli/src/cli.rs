@@ -1,7 +1,12 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
+#[command(author, version, about)]
 pub struct Cli {
+    /// Path to the repository (defaults to current directory)
+    #[arg(long = "repo-path", global = true)]
+    pub repo_path: Option<String>,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -49,10 +54,7 @@ pub enum Commands {
     },
 
     /// Set a configuration value
-    Set {
-        key: String,
-        value: String,
-    },
+    Set { key: String, value: String },
 
     /// Display the contents of a repository object
     ///
@@ -89,14 +91,10 @@ pub enum Commands {
     },
 
     /// Add a file or directory to the staging area
-    Add {
-        path: String,
-    },
+    Add { path: String },
 
     /// Remove a file or directory from the staging area
-    Delete {
-        path: String,
-    },
+    Delete { path: String },
 
     /// Create a commit object from a tree
     ///

@@ -1,6 +1,7 @@
 * {
   padding: 0;
   margin: 0;
+  font-family: var(--font-family);
 }
 
 :root {
@@ -12,11 +13,14 @@
 
   --menu-parent-color: #007aff;
   --menu-child-color: rgba(0, 0, 0, 0.7);
-
+  
   --hover-bg: #e8e8e8;
-
   --icon-opacity: 0.75;
   --toggle-color: rgba(0, 0, 0, 0.5);
+
+  --error-color: #ff3b30;
+  --error-bg: #fff5f5;
+  --error-border: #ffcccb;
 
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
 }

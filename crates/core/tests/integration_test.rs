@@ -48,8 +48,8 @@ fn set_test() {
 
     Repository::init(None, false).unwrap();
 
-    commands::set("user_name".to_string(), "user".to_string()).unwrap();
-    commands::set("user_email".to_string(), "user@gmail.com".to_string()).unwrap();
+    commands::set(None, "user_name".to_string(), "user".to_string()).unwrap();
+    commands::set(None, "user_email".to_string(), "user@gmail.com".to_string()).unwrap();
 
     assert!(project_path.join(".flux/config").exists());
 
@@ -67,7 +67,7 @@ fn hash_object_test() {
     Repository::init(None, false).unwrap();
 
     // file hashing
-    let my_hash = commands::hash_object("README.md".to_string(), false).unwrap();
+    let my_hash = commands::hash_object(None, "README.md".to_string(), false).unwrap();
     let git_hash = common::git_hash_object("README.md").unwrap();
     assert_eq!(my_hash, git_hash);
     let object_path = project_path
@@ -75,12 +75,12 @@ fn hash_object_test() {
         .join(&git_hash[..2])
         .join(&git_hash[2..]);
     assert!(!object_path.exists());
-    let _ = commands::hash_object("README.md".to_string(), true).unwrap();
+    let _ = commands::hash_object(None, "README.md".to_string(), true).unwrap();
     assert!(object_path.exists());
 
     // dir hashing (git does not support hashing directories directly)
     assert!(project_path.join("src").exists());
-    let my_hash = commands::hash_object("src".to_string(), true).unwrap();
+    let my_hash = commands::hash_object(None, "src".to_string(), true).unwrap();
     assert_eq!(my_hash, "ac715a76cc52acc719def812525f6ae57b4770a9");
 }
 
@@ -92,30 +92,30 @@ fn commit_test() {
 
     // create repo and set user data
     Repository::init(None, false).unwrap();
-    commands::set("user_name".to_string(), "Test User".to_string()).unwrap();
-    commands::set("user_email".to_string(), "test@example.com".to_string()).unwrap();
+    commands::set(None, "user_name".to_string(), "Test User".to_string()).unwrap();
+    commands::set(None, "user_email".to_string(), "test@example.com".to_string()).unwrap();
 
     // check if README is correctly added to the index
-    let readme_blob_hash = commands::hash_object("README.md".to_string(), false).unwrap();
+    let readme_blob_hash = commands::hash_object(None, "README.md".to_string(), false).unwrap();
     let readme_object_path = project_path
         .join(".flux/objects")
         .join(&readme_blob_hash[..2])
         .join(&readme_blob_hash[2..]);
     assert!(!readme_object_path.exists());
 
-    commands::add("README.md".to_string()).unwrap();
+    commands::add(None, "README.md".to_string()).unwrap();
 
     let index = fs::read_to_string(".flux/index").unwrap();
     assert!(index.contains(&format!("\"./README.md\":\"{}\"", readme_blob_hash)));
     assert!(readme_object_path.exists());
 
     // check if main and lib are correctly added to index
-    commands::add("src/main.rs".to_string()).unwrap();
-    commands::add("src/lib.rs".to_string()).unwrap();
+    commands::add(None, "src/main.rs".to_string()).unwrap();
+    commands::add(None, "src/lib.rs".to_string()).unwrap();
 
     let index = fs::read_to_string(".flux/index").unwrap();
-    let main_blob_hash = commands::hash_object("src/main.rs".to_string(), false).unwrap();
-    let lib_blob_hash = commands::hash_object("src/lib.rs".to_string(), false).unwrap();
+    let main_blob_hash = commands::hash_object(None, "src/main.rs".to_string(), false).unwrap();
+    let lib_blob_hash = commands::hash_object(None, "src/lib.rs".to_string(), false).unwrap();
 
     assert!(index.contains(&format!("\"./src/main.rs\":\"{}\"", main_blob_hash)));
     assert!(index.contains(&format!("\"./src/lib.rs\":\"{}\"", lib_blob_hash)));
@@ -127,7 +127,7 @@ fn commit_test() {
     assert!(main_object_path.exists());
 
     // check if commit is created correctly
-    let commit_hash = commands::commit("Initial commit".to_string()).unwrap();
+    let commit_hash = commands::commit(None, "Initial commit".to_string()).unwrap();
 
     assert_eq!(commit_hash.len(), 40);
 
@@ -164,9 +164,9 @@ fn commit_test() {
 
     // update README, create second commit and check if parent is set right
     fs::write("README.md", "Updated content for second commit").unwrap();
-    commands::add("README.md".to_string()).unwrap();
+    commands::add(None, "README.md".to_string()).unwrap();
 
-    let second_commit_hash = commands::commit("Second commit".to_string()).unwrap();
+    let second_commit_hash = commands::commit(None, "Second commit".to_string()).unwrap();
 
     assert_ne!(commit_hash, second_commit_hash);
 
